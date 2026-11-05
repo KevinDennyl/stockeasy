@@ -6,12 +6,16 @@
 
 import axios from 'axios';
 import { obterUsuarioIdAtivo } from '../utils/usuarioStorage';
+import { MODO_DEMO, adaptadorDemo } from './mockApi';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
   headers: {
     'Content-Type': 'application/json',
   },
+  // Modo demonstração (VITE_MODO_DEMO=true): as requisições são atendidas
+  // dentro do navegador, sem back-end. Ver src/services/mockApi.js.
+  ...(MODO_DEMO && { adapter: adaptadorDemo }),
 });
 
 // ----------------------------------------------------------------------------
