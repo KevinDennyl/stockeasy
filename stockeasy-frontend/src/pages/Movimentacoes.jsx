@@ -55,11 +55,11 @@ export default function Movimentacoes() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-ink-soft">
           Entradas e saídas manuais. As vendas baixam o estoque automaticamente.
         </p>
-        <button type="button" className="btn btn-primary shrink-0" onClick={() => setModalAberto(true)}>
+        <button type="button" className="btn btn-primary w-full shrink-0 sm:w-auto" onClick={() => setModalAberto(true)}>
           <Plus size={16} aria-hidden="true" />
           Nova movimentação
         </button>
@@ -70,7 +70,9 @@ export default function Movimentacoes() {
       {movimentacoes.length === 0 ? (
         <EstadoVazio mensagem="Nenhuma movimentação de estoque registrada ainda." />
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-line bg-white">
+        <>
+        {/* Tabela: telas grandes */}
+        <div className="hidden overflow-x-auto rounded-xl border border-line bg-white lg:block">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-line text-ink-soft">
@@ -106,6 +108,31 @@ export default function Movimentacoes() {
             </tbody>
           </table>
         </div>
+
+        {/* Cartões: celular e tablet */}
+        <ul className="space-y-3 lg:hidden">
+          {movimentacoes.map((mov) => {
+            const entrada = mov.tipo === 'ENTRADA';
+            return (
+              <li key={mov.id} className="rounded-xl border border-line bg-white p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="min-w-0 font-medium text-ink">{mov.produto_nome}</p>
+                  <span
+                    className={`inline-flex shrink-0 items-center gap-1.5 text-sm font-medium ${
+                      entrada ? 'text-moss' : 'text-clay'
+                    }`}
+                  >
+                    {entrada ? <ArrowUpCircle size={16} aria-hidden="true" /> : <ArrowDownCircle size={16} aria-hidden="true" />}
+                    {entrada ? 'Entrada' : 'Saída'} · {mov.quantidade}
+                  </span>
+                </div>
+                <p className="mt-1.5 text-sm text-ink-soft">{mov.observacao || 'Sem motivo informado'}</p>
+                <p className="mt-2 text-xs text-ink-soft">{formatarData(mov.data_movimentacao)}</p>
+              </li>
+            );
+          })}
+        </ul>
+        </>
       )}
 
       {modalAberto && (

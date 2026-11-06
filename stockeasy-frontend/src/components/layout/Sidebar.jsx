@@ -1,30 +1,22 @@
 // ============================================================================
 // src/components/layout/Sidebar.jsx
-// Navegação lateral fixa. Fundo verde-floresta escuro para diferenciar
-// claramente a área de navegação do conteúdo (fundo claro).
+// Navegação lateral fixa, exibida apenas em telas grandes (>= 1024px).
+// Em telas menores a navegação fica na BottomNav.
 // ============================================================================
 
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Package, ArrowLeftRight, ShoppingCart, Boxes } from 'lucide-react';
-
-const LINKS = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/produtos', label: 'Produtos', icon: Package },
-  { to: '/movimentacoes', label: 'Movimentações', icon: ArrowLeftRight },
-  { to: '/vendas', label: 'Vendas', icon: ShoppingCart },
-];
+import { Boxes } from 'lucide-react';
+import { LINKS } from './links';
 
 export default function Sidebar() {
   return (
-    <aside className="w-64 shrink-0 bg-panel text-white flex flex-col">
+    <aside className="hidden w-64 shrink-0 flex-col bg-panel text-white lg:flex">
       <div className="flex items-center gap-2 px-6 py-6">
         <Boxes size={24} className="text-moss-light" strokeWidth={2} />
-        <span className="font-display text-lg font-semibold tracking-tight">
-          StockEasy
-        </span>
+        <span className="font-display text-lg font-semibold tracking-tight">StockEasy</span>
       </div>
 
-      <nav className="flex-1 px-3 py-2 space-y-1">
+      <nav aria-label="Navegação principal" className="flex-1 space-y-1 px-3 py-2">
         {LINKS.map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}
@@ -45,7 +37,7 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      <div className="px-6 py-5 text-xs text-white/40 border-t border-white/10">
+      <div className="border-t border-white/10 px-6 py-5 text-xs text-white/40">
         StockEasy · Gestão para MEIs
       </div>
     </aside>

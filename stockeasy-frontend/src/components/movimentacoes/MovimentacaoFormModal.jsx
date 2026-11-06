@@ -103,7 +103,7 @@ export default function MovimentacaoFormModal({ produtos, onFechar, onSalvo }) {
       rodape={
         <div className="space-y-3">
           {erroApi && <EstadoErro mensagem={erroApi} />}
-          <div className="flex justify-end gap-3">
+          <div className="acoes-modal">
             <button type="button" className="btn btn-secondary" onClick={onFechar} disabled={salvando}>
               Cancelar
             </button>

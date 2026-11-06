@@ -20,7 +20,7 @@ export default function BannerDemo() {
   }
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 bg-amber-light px-8 py-2 text-sm text-amber-dark">
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 bg-amber-light px-4 py-2 text-xs text-amber-dark sm:px-6 sm:text-sm lg:px-8">
       <p>
         <strong className="font-semibold">Modo demonstração:</strong> os dados são fictícios e ficam salvos
         apenas neste navegador.

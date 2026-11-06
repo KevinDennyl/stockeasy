@@ -22,7 +22,7 @@ function SeletorDeUsuario() {
   const { usuarios, usuarioAtivo, carregando, erro, trocarUsuario, recarregar } = useUsuario();
 
   if (carregando) {
-    return <span className="text-sm text-ink-soft">Carregando usuários...</span>;
+    return <span className="text-xs text-ink-soft sm:text-sm">Carregando usuários...</span>;
   }
 
   if (erro) {
@@ -30,7 +30,7 @@ function SeletorDeUsuario() {
       <button
         type="button"
         onClick={recarregar}
-        className="rounded text-sm font-medium text-clay-dark underline underline-offset-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-moss"
+        className="rounded text-right text-xs font-medium text-clay-dark underline underline-offset-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-moss sm:text-sm"
         title={erro}
       >
         Usuários indisponíveis — tentar novamente
@@ -39,7 +39,7 @@ function SeletorDeUsuario() {
   }
 
   if (usuarios.length === 0) {
-    return <span className="text-sm text-ink-soft">Nenhum usuário cadastrado no banco</span>;
+    return <span className="text-xs text-ink-soft sm:text-sm">Nenhum usuário cadastrado no banco</span>;
   }
 
   return (
@@ -49,7 +49,7 @@ function SeletorDeUsuario() {
       </label>
       <select
         id="seletor-usuario"
-        className="input !w-auto min-w-[10rem] py-2"
+        className="input !w-auto min-w-0 max-w-[11rem] py-2 sm:min-w-[10rem] sm:max-w-none"
         value={usuarioAtivo?.id ?? ''}
         onChange={(evento) => trocarUsuario(evento.target.value)}
       >
@@ -62,7 +62,7 @@ function SeletorDeUsuario() {
       {usuarioAtivo && (
         <div
           aria-hidden="true"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-moss text-sm font-semibold text-white"
+          className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full bg-moss text-sm font-semibold text-white sm:flex"
         >
           {obterIniciais(usuarioAtivo.nome)}
         </div>
@@ -73,13 +73,13 @@ function SeletorDeUsuario() {
 
 export default function Header({ title, subtitle }) {
   return (
-    <header className="flex items-center justify-between gap-4 border-b border-line bg-paper px-8 py-5">
-      <div>
-        <h1 className="font-display text-2xl font-semibold text-ink">{title}</h1>
-        {subtitle && <p className="mt-0.5 text-sm text-ink-soft">{subtitle}</p>}
+    <header className="flex items-center justify-between gap-3 border-b border-line bg-paper px-4 py-3 sm:px-6 lg:px-8 lg:py-5">
+      <div className="min-w-0">
+        <h1 className="truncate font-display text-xl font-semibold text-ink lg:text-2xl">{title}</h1>
+        {subtitle && <p className="mt-0.5 hidden text-sm text-ink-soft sm:block">{subtitle}</p>}
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-2 sm:gap-3">
         <SeletorDeUsuario />
       </div>
     </header>

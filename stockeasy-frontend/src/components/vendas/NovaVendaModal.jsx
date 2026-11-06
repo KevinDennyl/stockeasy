@@ -154,7 +154,7 @@ export default function NovaVendaModal({ onFechar, onSalvo }) {
   const rodape = (
     <div className="space-y-3">
       {erro && <EstadoErro mensagem={erro} />}
-      <div className="flex justify-end gap-3">
+      <div className="acoes-modal">
         <button type="button" className="btn btn-secondary" onClick={onFechar} disabled={salvando}>
           Cancelar
         </button>
@@ -217,7 +217,10 @@ export default function NovaVendaModal({ onFechar, onSalvo }) {
               const numero = indice + 1;
 
               return (
-                <li key={linha.id} className={`grid grid-cols-2 gap-2 md:items-start md:gap-3 ${COLUNAS}`}>
+                <li
+                  key={linha.id}
+                  className={`grid grid-cols-2 gap-3 rounded-xl border border-line p-3 md:items-start md:rounded-none md:border-0 md:p-0 ${COLUNAS}`}
+                >
                   <div className="col-span-2 md:col-span-1">
                     <select
                       aria-label={`Produto do item ${numero}`}
@@ -252,32 +255,39 @@ export default function NovaVendaModal({ onFechar, onSalvo }) {
                     )}
                   </div>
 
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    step="1"
-                    min="1"
-                    aria-label={`Quantidade do item ${numero}`}
-                    placeholder="Qtd."
-                    className="input"
-                    value={linha.quantidade}
-                    onChange={(e) => atualizarLinha(linha.id, { quantidade: e.target.value })}
-                  />
+                  <label className="block">
+                    <span className="mb-1 block text-xs text-ink-soft md:sr-only">Quantidade</span>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      step="1"
+                      min="1"
+                      aria-label={`Quantidade do item ${numero}`}
+                      placeholder="Qtd."
+                      className="input"
+                      value={linha.quantidade}
+                      onChange={(e) => atualizarLinha(linha.id, { quantidade: e.target.value })}
+                    />
+                  </label>
 
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    step="0.01"
-                    min="0"
-                    aria-label={`Preço unitário do item ${numero}`}
-                    placeholder="Preço"
-                    className="input"
-                    value={linha.preco}
-                    onChange={(e) => atualizarLinha(linha.id, { preco: e.target.value })}
-                  />
+                  <label className="block">
+                    <span className="mb-1 block text-xs text-ink-soft md:sr-only">Preço unitário</span>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      min="0"
+                      aria-label={`Preço unitário do item ${numero}`}
+                      placeholder="Preço"
+                      className="input"
+                      value={linha.preco}
+                      onChange={(e) => atualizarLinha(linha.id, { preco: e.target.value })}
+                    />
+                  </label>
 
-                  <p className="py-2.5 text-right text-sm font-medium text-ink">
-                    {formatarMoeda(subtotalDaLinha(linha))}
+                  <p className="flex items-center justify-between text-sm font-medium text-ink md:justify-end md:py-2.5">
+                    <span className="text-xs font-normal text-ink-soft md:hidden">Subtotal</span>
+                    <span>{formatarMoeda(subtotalDaLinha(linha))}</span>
                   </p>
 
                   <button
@@ -286,7 +296,7 @@ export default function NovaVendaModal({ onFechar, onSalvo }) {
                     disabled={linhas.length === 1}
                     aria-label={`Remover item ${numero}`}
                     title="Remover item"
-                    className="btn-icone justify-self-end hover:!bg-clay-light hover:!text-clay-dark disabled:opacity-30 disabled:hover:!bg-transparent disabled:hover:!text-ink-soft"
+                    className="btn-icone flex h-11 w-11 items-center justify-center justify-self-end md:h-auto md:w-auto hover:!bg-clay-light hover:!text-clay-dark disabled:opacity-30 disabled:hover:!bg-transparent disabled:hover:!text-ink-soft"
                   >
                     <Trash2 size={16} />
                   </button>

@@ -96,15 +96,15 @@ export default function Modal({
   if (!aberto) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 sm:items-center sm:p-4">
       <div
         ref={painelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={tituloId}
-        className={`flex max-h-[90vh] w-full flex-col rounded-xl bg-white shadow-xl ${LARGURAS[largura]}`}
+        className={`flex max-h-[92dvh] w-full flex-col rounded-t-2xl bg-white shadow-xl sm:max-h-[90vh] sm:rounded-xl ${LARGURAS[largura]}`}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-line px-6 py-4">
+        <div className="flex items-start justify-between gap-4 border-b border-line px-4 py-3 sm:px-6 sm:py-4">
           <h2 id={tituloId} className="font-display text-lg font-semibold text-ink">
             {titulo}
           </h2>
@@ -113,15 +113,15 @@ export default function Modal({
             onClick={onFechar}
             disabled={!podeFechar}
             aria-label="Fechar"
-            className="btn-icone -mr-2 -mt-1 disabled:opacity-40"
+            className="btn-icone -mr-2 -mt-1 p-2.5 disabled:opacity-40"
           >
             <X size={18} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">{children}</div>
 
-        {rodape && <div className="border-t border-line px-6 py-4">{rodape}</div>}
+        {rodape && <div className="border-t border-line px-4 py-3 sm:px-6 sm:py-4">{rodape}</div>}
       </div>
     </div>,
     document.body

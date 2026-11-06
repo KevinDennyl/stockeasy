@@ -50,11 +50,11 @@ export default function Vendas() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-ink-soft">
           {vendas.length === 1 ? '1 venda registrada' : `${vendas.length} vendas registradas`}
         </p>
-        <button type="button" className="btn btn-primary" onClick={() => setModalAberto(true)}>
+        <button type="button" className="btn btn-primary w-full sm:w-auto" onClick={() => setModalAberto(true)}>
           <Plus size={16} aria-hidden="true" />
           Nova venda
         </button>
@@ -65,7 +65,9 @@ export default function Vendas() {
       {vendas.length === 0 ? (
         <EstadoVazio mensagem="Nenhuma venda registrada ainda. Use o botão “Nova venda” para fazer a primeira." />
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-line bg-white">
+        <>
+        {/* Tabela: telas grandes */}
+        <div className="hidden overflow-x-auto rounded-xl border border-line bg-white lg:block">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-line text-ink-soft">
@@ -87,6 +89,22 @@ export default function Vendas() {
             </tbody>
           </table>
         </div>
+
+        {/* Cartões: celular e tablet */}
+        <ul className="space-y-3 lg:hidden">
+          {vendas.map((venda) => (
+            <li key={venda.id} className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white p-4">
+              <div className="min-w-0">
+                <p className="font-medium text-ink">{venda.usuario_nome}</p>
+                <p className="mt-0.5 text-xs text-ink-soft">{formatarData(venda.data_venda)}</p>
+              </div>
+              <p className="shrink-0 font-display text-lg font-semibold text-moss">
+                {formatarMoeda(venda.valor_total)}
+              </p>
+            </li>
+          ))}
+        </ul>
+        </>
       )}
 
       {modalAberto && (

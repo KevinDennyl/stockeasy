@@ -97,11 +97,11 @@ export default function Produtos() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-ink-soft">
           {produtos.length === 1 ? '1 produto cadastrado' : `${produtos.length} produtos cadastrados`}
         </p>
-        <button type="button" className="btn btn-primary" onClick={() => setModal({ produto: null })}>
+        <button type="button" className="btn btn-primary w-full sm:w-auto" onClick={() => setModal({ produto: null })}>
           <Plus size={16} aria-hidden="true" />
           Novo produto
         </button>
@@ -112,7 +112,9 @@ export default function Produtos() {
       {produtos.length === 0 ? (
         <EstadoVazio mensagem="Nenhum produto cadastrado ainda. Use o botão “Novo produto” para começar." />
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-line bg-white">
+        <>
+        {/* Tabela: telas grandes */}
+        <div className="hidden overflow-x-auto rounded-xl border border-line bg-white lg:block">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-line text-ink-soft">
@@ -166,6 +168,64 @@ export default function Produtos() {
             </tbody>
           </table>
         </div>
+
+        {/* Cartões: celular e tablet */}
+        <ul className="space-y-3 lg:hidden">
+          {produtos.map((produto) => {
+            const estoqueBaixo = produto.quantidade_estoque <= produto.estoque_minimo;
+            return (
+              <li key={produto.id} className="rounded-xl border border-line bg-white p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-medium text-ink">{produto.nome}</p>
+                    <p className="mt-0.5 text-sm text-ink-soft">{produto.categoria_nome || 'Sem categoria'}</p>
+                  </div>
+                  <p className="shrink-0 font-display text-lg font-semibold text-ink">
+                    {formatarMoeda(produto.preco_venda)}
+                  </p>
+                </div>
+
+                <div className="mt-3 flex items-end justify-between gap-3">
+                  <dl className="flex gap-6 text-sm">
+                    <div>
+                      <dt className="text-xs text-ink-soft">Em estoque</dt>
+                      <dd className={estoqueBaixo ? 'font-medium text-amber-dark' : 'text-ink'}>
+                        {produto.quantidade_estoque} {produto.unidade_medida}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-ink-soft">Mínimo</dt>
+                      <dd className="text-ink">
+                        {produto.estoque_minimo} {produto.unidade_medida}
+                      </dd>
+                    </div>
+                  </dl>
+
+                  {/* botões com 44px: tamanho mínimo recomendado para toque */}
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      className="btn-icone flex h-11 w-11 items-center justify-center"
+                      onClick={() => setModal({ produto })}
+                      aria-label={`Editar ${produto.nome}`}
+                    >
+                      <Pencil size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-icone flex h-11 w-11 items-center justify-center hover:!bg-clay-light hover:!text-clay-dark"
+                      onClick={() => pedirExclusao(produto)}
+                      aria-label={`Excluir ${produto.nome}`}
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+        </>
       )}
 
       {modal && (

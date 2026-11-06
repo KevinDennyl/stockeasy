@@ -27,7 +27,7 @@ export default function ConfirmDialog({
       podeFechar={!carregando}
       largura="sm"
       rodape={
-        <div className="flex justify-end gap-3">
+        <div className="acoes-modal">
           <button
             type="button"
             data-autofocus

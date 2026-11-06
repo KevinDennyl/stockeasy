@@ -1,17 +1,20 @@
 // ============================================================================
 // src/components/layout/MainLayout.jsx
-// Estrutura visual comum a todas as telas autenticadas: Sidebar fixa à
-// esquerda + Header no topo + área de conteúdo rolável.
+// Estrutura visual comum a todas as telas.
 //
-// O título/subtítulo do Header muda de acordo com a rota atual. Mantemos
-// esse mapeamento aqui (em vez de duplicar em cada página) para o Header
-// ficar sempre consistente e a página só precisar se preocupar com o
-// próprio conteúdo.
+//  - Telas grandes (>= 1024px): Sidebar à esquerda + Header + conteúdo.
+//  - Celular/tablet (< 1024px): Header no topo, conteúdo rolável e a
+//    BottomNav fixa na base.
+//
+// "h-dvh" usa a altura REAL visível do celular (descontando a barra de
+// endereço do navegador). Com "h-screen" a barra inferior ficaria escondida
+// atrás da interface do navegador.
 // ============================================================================
 
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import BottomNav from './BottomNav';
 import BannerDemo from './BannerDemo';
 
 const TITULOS_POR_ROTA = {
@@ -29,14 +32,15 @@ export default function MainLayout() {
   };
 
   return (
-    <div className="flex h-screen bg-paper">
+    <div className="flex h-dvh bg-paper">
       <Sidebar />
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <BannerDemo />
         <Header title={title} subtitle={subtitle} />
-        <main className="flex-1 overflow-y-auto px-8 py-8">
+        <main className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
           <Outlet />
         </main>
+        <BottomNav />
       </div>
     </div>
   );
