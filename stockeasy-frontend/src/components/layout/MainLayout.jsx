@@ -22,6 +22,7 @@ const TITULOS_POR_ROTA = {
   '/produtos': { title: 'Produtos', subtitle: 'Catálogo e controle de estoque' },
   '/movimentacoes': { title: 'Movimentações', subtitle: 'Entradas e saídas manuais de estoque' },
   '/vendas': { title: 'Vendas', subtitle: 'Histórico de vendas realizadas' },
+  '/fiados': { title: 'Fiados', subtitle: 'Pedidos para o cliente pagar depois' },
 };
 
 export default function MainLayout() {

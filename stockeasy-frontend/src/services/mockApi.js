@@ -30,6 +30,57 @@ const ATRASO_MS = 120; // pequena espera, para os estados de "carregando" aparec
 // escolhido) e UUID aleatório para tudo que o visitante criar.
 const idFixo = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 
+// ----------------------------------------------------------------------------
+// Login de demonstração
+// As contas abaixo são públicas de propósito (qualquer visitante pode entrar).
+// O "token" imita o formato de um JWT (cabecalho.corpo.assinatura) só para o
+// resto do front-end tratar demo e API real da mesma forma; NÃO tem segurança
+// nenhuma, e não precisa: os dados também são fictícios e ficam só no navegador.
+// ----------------------------------------------------------------------------
+export const SENHA_DEMO = 'demo123';
+export const CONTAS_DEMO = [
+  { id: idFixo(1), nome: 'Ana Souza', email: 'ana@demo.com' },
+  { id: idFixo(2), nome: 'Carlos Lima', email: 'carlos@demo.com' },
+];
+const VALIDADE_TOKEN_DEMO_S = 12 * 3600;
+
+function paraBase64Url(texto) {
+  const bytes = new TextEncoder().encode(texto);
+  let binario = '';
+  bytes.forEach((b) => {
+    binario += String.fromCharCode(b);
+  });
+  return btoa(binario).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function deBase64Url(b64) {
+  const bin = atob(b64.replace(/-/g, '+').replace(/_/g, '/'));
+  return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
+}
+
+function gerarTokenDemo(conta) {
+  const exp = Math.floor(Date.now() / 1000) + VALIDADE_TOKEN_DEMO_S;
+  return `demo.${paraBase64Url(JSON.stringify({ sub: conta.id, nome: conta.nome, exp }))}.demo`;
+}
+
+// Devolve o usuário do token ou interrompe com 401 (igual ao middleware do back-end)
+function exigirLogin(cabecalho) {
+  const [tipo, token] = String(cabecalho || '').split(' ');
+  if (tipo !== 'Bearer' || !token) falhar(401, 'Faça login para continuar.');
+
+  let payload;
+  try {
+    payload = JSON.parse(deBase64Url(token.split('.')[1]));
+  } catch {
+    falhar(401, 'Sessão inválida. Entre novamente.');
+  }
+  if (!token.startsWith('demo.') || typeof payload.exp !== 'number') falhar(401, 'Sessão inválida. Entre novamente.');
+  if (payload.exp <= Math.floor(Date.now() / 1000)) falhar(401, 'Sua sessão expirou. Entre novamente.');
+  if (!CONTAS_DEMO.some((c) => c.id === payload.sub)) falhar(401, 'Sessão inválida. Entre novamente.');
+
+  return { id: payload.sub, nome: payload.nome };
+}
+
 function novoId() {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -57,6 +108,23 @@ const ok = (data, status = 200) => ({ status, data });
 // "Banco de dados": dados de exemplo + persistência no localStorage
 // ----------------------------------------------------------------------------
 
+// "AAAA-MM-DD" de N dias atrás, no relógio local (sem passar por UTC)
+function dataISODiasAtras(dias) {
+  const d = new Date();
+  d.setDate(d.getDate() - dias);
+  const dois = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${dois(d.getMonth() + 1)}-${dois(d.getDate())}`;
+}
+
+function criarFiadosIniciais() {
+  const instante = (dias) => new Date(Date.now() - dias * 86400000).toISOString();
+  return [
+    { id: idFixo(61), usuario_id: idFixo(1), nome_cliente: 'Maria das Graças', telefone: '11987654321', produto: '2 colares Lua de Prata', valor: 59.8, data_pedido: dataISODiasAtras(5), pago: false, pago_em: null },
+    { id: idFixo(62), usuario_id: idFixo(2), nome_cliente: 'João Pereira', telefone: '11912345678', produto: '1 vela de lavanda + 1 caderno artesanal A5', valor: 46.9, data_pedido: dataISODiasAtras(12), pago: false, pago_em: null },
+    { id: idFixo(63), usuario_id: idFixo(1), nome_cliente: 'Dona Rita', telefone: '1133445566', produto: '3 brincos Flor de Resina', valor: 47.7, data_pedido: dataISODiasAtras(20), pago: true, pago_em: instante(3) },
+  ];
+}
+
 function criarDadosIniciais() {
   const diasAtras = (d) => new Date(Date.now() - d * 86400000).toISOString();
 
@@ -83,6 +151,7 @@ function criarDadosIniciais() {
       { id: idFixo(32), produto_id: idFixo(25), tipo: 'ENTRADA', quantidade: 5, observacao: 'Compra extra para atender feira de artesanato', data_movimentacao: diasAtras(9) },
       { id: idFixo(33), produto_id: idFixo(25), tipo: 'SAIDA', quantidade: 3, observacao: 'Embalagens danificadas no transporte', data_movimentacao: diasAtras(2) },
     ],
+    fiados: criarFiadosIniciais(),
     vendas: [
       {
         id: idFixo(41), usuario_id: idFixo(1), data_venda: diasAtras(6), valor_total: 84.7,
@@ -119,7 +188,11 @@ function gravarBanco(db) {
 function lerBanco() {
   try {
     const bruto = localStorage.getItem(CHAVE_BANCO);
-    if (bruto) return JSON.parse(bruto);
+    if (bruto) {
+      const salvo = JSON.parse(bruto);
+      if (!Array.isArray(salvo.fiados)) salvo.fiados = criarFiadosIniciais(); // dados salvos antes dos fiados existirem
+      return salvo;
+    }
   } catch {
     // storage bloqueado ou JSON corrompido: cai para os casos abaixo
   }
@@ -340,7 +413,7 @@ function detalharVenda(db, venda) {
   };
 }
 
-function rotaVendas(db, metodo, partes, corpo) {
+function rotaVendas(db, metodo, partes, corpo, usuarioLogado) {
   if (partes.length === 1 && metodo === 'get') {
     return ok(
       [...db.vendas]
@@ -361,7 +434,6 @@ function rotaVendas(db, metodo, partes, corpo) {
   if (partes.length === 1 && metodo === 'post') {
     // --- validação (mesmas mensagens do back-end) ---
     const erros = [];
-    if (!textoValido(corpo.usuario_id)) erros.push('O campo "usuario_id" é obrigatório.');
     if (!Array.isArray(corpo.itens) || corpo.itens.length === 0) {
       erros.push('O campo "itens" deve ser um array com pelo menos um item de venda.');
     } else {
@@ -372,7 +444,6 @@ function rotaVendas(db, metodo, partes, corpo) {
       });
     }
     if (erros.length > 0) falhar(400, erros.join(' '));
-    if (!db.usuarios.some((u) => u.id === corpo.usuario_id)) falhar(400, 'usuario_id informado não existe.');
 
     // --- itens: equivale ao BEGIN ... COMMIT/ROLLBACK ---
     // Tudo é calculado sobre "db" (uma cópia lida do storage) e só é gravado
@@ -404,7 +475,7 @@ function rotaVendas(db, metodo, partes, corpo) {
 
     const venda = {
       id: novoId(),
-      usuario_id: corpo.usuario_id,
+      usuario_id: usuarioLogado.id, // sempre o usuário do token; um usuario_id no corpo é ignorado
       data_venda: new Date().toISOString(),
       valor_total: arredondar(itens.reduce((soma, i) => soma + i.subtotal, 0)),
       itens,
@@ -412,6 +483,114 @@ function rotaVendas(db, metodo, partes, corpo) {
     db.vendas.push(venda);
     gravarBanco(db);
     return ok(detalharVenda(db, venda), 201);
+  }
+  return null;
+}
+
+// ---- Fiados (mesmas regras e mensagens do back-end) ----
+function normalizarTelefoneDemo(valor) {
+  let digitos = String(valor ?? '').replace(/\D/g, '');
+  if (digitos.length > 11 && digitos.startsWith('55')) digitos = digitos.slice(2);
+  return digitos;
+}
+
+function dataISOValida(texto) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(texto));
+  if (!m) return false;
+  const [ano, mes, dia] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const d = new Date(Date.UTC(ano, mes - 1, dia));
+  return d.getUTCFullYear() === ano && d.getUTCMonth() === mes - 1 && d.getUTCDate() === dia;
+}
+
+function validarFiadoDemo(corpo) {
+  const c = corpo && typeof corpo === 'object' ? corpo : {};
+  const erros = [];
+  const nome = typeof c.nome_cliente === 'string' ? c.nome_cliente.trim() : '';
+  const produto = typeof c.produto === 'string' ? c.produto.trim() : '';
+  const telefone = normalizarTelefoneDemo(c.telefone);
+  const valor = Number(c.valor);
+  const valorInformado = typeof c.valor === 'number' || (typeof c.valor === 'string' && c.valor.trim() !== '');
+  const data = c.data_pedido ?? dataISODiasAtras(0);
+  const pago = c.pago === undefined ? false : c.pago;
+
+  if (nome.length < 2 || nome.length > 150) erros.push('O nome do cliente deve ter entre 2 e 150 caracteres.');
+  if (telefone.length < 10 || telefone.length > 11) erros.push('O telefone deve ter o DDD e o número (10 ou 11 dígitos).');
+  if (produto.length < 2 || produto.length > 300) erros.push('Descreva o produto vendido (entre 2 e 300 caracteres).');
+  if (!valorInformado || !Number.isFinite(valor) || valor <= 0 || valor > 99999999.99) {
+    erros.push('O valor do pedido deve ser um número maior que zero.');
+  }
+  if (!dataISOValida(data)) erros.push('A data do pedido é inválida (use o formato AAAA-MM-DD).');
+  if (typeof pago !== 'boolean') erros.push('O campo "pago" deve ser verdadeiro ou falso.');
+
+  return { erros, dados: { nome, telefone, produto, valor: arredondar(valor), data, pago } };
+}
+
+function visaoFiado(db, f) {
+  const { usuario_id, ...resto } = f;
+  return { ...resto, registrado_por: db.usuarios.find((u) => u.id === usuario_id)?.nome ?? null };
+}
+
+function rotaFiados(db, metodo, partes, corpo, usuarioLogado) {
+  if (partes.length === 1 && metodo === 'get') {
+    return ok(
+      [...db.fiados]
+        .sort((a, b) => Number(a.pago) - Number(b.pago) || b.data_pedido.localeCompare(a.data_pedido))
+        .map((f) => visaoFiado(db, f))
+    );
+  }
+
+  if (partes.length === 1 && metodo === 'post') {
+    const { erros, dados } = validarFiadoDemo(corpo);
+    if (erros.length > 0) falhar(400, erros.join(' '));
+    const fiado = {
+      id: novoId(),
+      usuario_id: usuarioLogado.id,
+      nome_cliente: dados.nome,
+      telefone: dados.telefone,
+      produto: dados.produto,
+      valor: dados.valor,
+      data_pedido: dados.data,
+      pago: dados.pago,
+      pago_em: dados.pago ? new Date().toISOString() : null,
+    };
+    db.fiados.push(fiado);
+    gravarBanco(db);
+    return ok(visaoFiado(db, fiado), 201);
+  }
+
+  const fiado = partes.length >= 2 ? db.fiados.find((f) => f.id === partes[1]) : null;
+
+  if (partes.length === 2 && metodo === 'put') {
+    const { erros, dados } = validarFiadoDemo(corpo);
+    if (erros.length > 0) falhar(400, erros.join(' '));
+    if (!fiado) falhar(404, 'Fiado não encontrado.');
+    Object.assign(fiado, {
+      nome_cliente: dados.nome,
+      telefone: dados.telefone,
+      produto: dados.produto,
+      valor: dados.valor,
+      data_pedido: dados.data,
+      pago: dados.pago,
+      pago_em: dados.pago ? fiado.pago_em ?? new Date().toISOString() : null,
+    });
+    gravarBanco(db);
+    return ok(visaoFiado(db, fiado));
+  }
+
+  if (partes.length === 3 && partes[2] === 'pago' && metodo === 'patch') {
+    if (typeof corpo.pago !== 'boolean') falhar(400, 'Informe "pago" como verdadeiro ou falso.');
+    if (!fiado) falhar(404, 'Fiado não encontrado.');
+    fiado.pago = corpo.pago;
+    fiado.pago_em = corpo.pago ? fiado.pago_em ?? new Date().toISOString() : null;
+    gravarBanco(db);
+    return ok(visaoFiado(db, fiado));
+  }
+
+  if (partes.length === 2 && metodo === 'delete') {
+    if (!fiado) falhar(404, 'Fiado não encontrado.');
+    db.fiados = db.fiados.filter((f) => f.id !== fiado.id);
+    gravarBanco(db);
+    return ok({ status: 'ok', message: 'Fiado removido com sucesso.', id: fiado.id });
   }
   return null;
 }
@@ -428,12 +607,33 @@ function rotaDashboard(db, metodo, partes) {
   return null;
 }
 
-function tratarRequisicao(metodo, caminho, corpo) {
+function tratarRequisicao(metodo, caminho, corpo, autorizacao) {
   const partes = caminho.split('/').filter(Boolean);
+
+  // ---- rotas públicas ----
+  if (partes[0] === 'auth' && partes[1] === 'login' && metodo === 'post') {
+    const email = String(corpo.email || '').trim().toLowerCase();
+    const conta = CONTAS_DEMO.find((c) => c.email === email);
+    if (!conta || corpo.senha !== SENHA_DEMO) falhar(401, 'E-mail ou senha incorretos.');
+    return ok({
+      token: gerarTokenDemo(conta),
+      expira_em: new Date(Date.now() + VALIDADE_TOKEN_DEMO_S * 1000).toISOString(),
+      usuario: { id: conta.id, nome: conta.nome, email: conta.email },
+    });
+  }
+
+  // ---- daqui para baixo, tudo exige login (como no back-end) ----
+  const usuarioLogado = partes[0] === 'health' ? null : exigirLogin(autorizacao);
   const db = lerBanco();
 
   let resposta = null;
   switch (partes[0]) {
+    case 'auth':
+      if (partes[1] === 'me' && metodo === 'get') {
+        const conta = CONTAS_DEMO.find((c) => c.id === usuarioLogado.id);
+        resposta = ok({ usuario: { id: conta.id, nome: conta.nome, email: conta.email } });
+      }
+      break;
     case 'health':
       resposta = ok({ status: 'ok', api: 'demo', database: 'navegador (localStorage)', horario_servidor: new Date().toISOString() });
       break;
@@ -450,10 +650,13 @@ function tratarRequisicao(metodo, caminho, corpo) {
       resposta = rotaMovimentacoes(db, metodo, partes, corpo);
       break;
     case 'vendas':
-      resposta = rotaVendas(db, metodo, partes, corpo);
+      resposta = rotaVendas(db, metodo, partes, corpo, usuarioLogado);
       break;
     case 'dashboard':
       resposta = rotaDashboard(db, metodo, partes);
+      break;
+    case 'fiados':
+      resposta = rotaFiados(db, metodo, partes, corpo, usuarioLogado);
       break;
     default:
       break;
@@ -483,7 +686,10 @@ export async function adaptadorDemo(config) {
 
   let resultado;
   try {
-    resultado = tratarRequisicao(metodo, caminho, corpo || {});
+    const cabecalhos = config.headers;
+    const autorizacao =
+      typeof cabecalhos?.get === 'function' ? cabecalhos.get('Authorization') : cabecalhos?.Authorization;
+    resultado = tratarRequisicao(metodo, caminho, corpo || {}, autorizacao);
   } catch (erro) {
     if (erro && erro.__http) {
       resultado = { status: erro.status, data: { status: 'error', message: erro.message } };

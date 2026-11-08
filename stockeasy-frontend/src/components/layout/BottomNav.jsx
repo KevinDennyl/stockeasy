@@ -12,7 +12,7 @@ export default function BottomNav() {
   return (
     <nav aria-label="Navegação principal" className="shrink-0 border-t border-line bg-white lg:hidden">
       <ul className="flex">
-        {LINKS.map(({ to, label, icon: Icon, end }) => (
+        {LINKS.map(({ to, label, rotuloCurto, icon: Icon, end }) => (
           <li key={to} className="min-w-0 flex-1">
             <NavLink
               to={to}
@@ -35,7 +35,7 @@ export default function BottomNav() {
                     }`}
                   />
                   <Icon size={22} strokeWidth={isActive ? 2.25 : 1.75} aria-hidden="true" />
-                  <span className="max-w-full truncate">{label}</span>
+                  <span className="max-w-full truncate">{rotuloCurto ?? label}</span>
                 </>
               )}
             </NavLink>
