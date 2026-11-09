@@ -1,3 +1,9 @@
+// ============================================================================
+// src/components/ErrorBoundary.jsx
+// Rede de segurança: se algum componente lançar erro ao renderizar, mostra a
+// mensagem do erro em vez de deixar a tela em branco.
+// ============================================================================
+
 import { Component } from 'react';
 
 export default class ErrorBoundary extends Component {

@@ -30,57 +30,6 @@ const ATRASO_MS = 120; // pequena espera, para os estados de "carregando" aparec
 // escolhido) e UUID aleatório para tudo que o visitante criar.
 const idFixo = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 
-// ----------------------------------------------------------------------------
-// Login de demonstração
-// As contas abaixo são públicas de propósito (qualquer visitante pode entrar).
-// O "token" imita o formato de um JWT (cabecalho.corpo.assinatura) só para o
-// resto do front-end tratar demo e API real da mesma forma; NÃO tem segurança
-// nenhuma, e não precisa: os dados também são fictícios e ficam só no navegador.
-// ----------------------------------------------------------------------------
-export const SENHA_DEMO = 'demo123';
-export const CONTAS_DEMO = [
-  { id: idFixo(1), nome: 'Ana Souza', email: 'ana@demo.com' },
-  { id: idFixo(2), nome: 'Carlos Lima', email: 'carlos@demo.com' },
-];
-const VALIDADE_TOKEN_DEMO_S = 12 * 3600;
-
-function paraBase64Url(texto) {
-  const bytes = new TextEncoder().encode(texto);
-  let binario = '';
-  bytes.forEach((b) => {
-    binario += String.fromCharCode(b);
-  });
-  return btoa(binario).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-function deBase64Url(b64) {
-  const bin = atob(b64.replace(/-/g, '+').replace(/_/g, '/'));
-  return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
-}
-
-function gerarTokenDemo(conta) {
-  const exp = Math.floor(Date.now() / 1000) + VALIDADE_TOKEN_DEMO_S;
-  return `demo.${paraBase64Url(JSON.stringify({ sub: conta.id, nome: conta.nome, exp }))}.demo`;
-}
-
-// Devolve o usuário do token ou interrompe com 401 (igual ao middleware do back-end)
-function exigirLogin(cabecalho) {
-  const [tipo, token] = String(cabecalho || '').split(' ');
-  if (tipo !== 'Bearer' || !token) falhar(401, 'Faça login para continuar.');
-
-  let payload;
-  try {
-    payload = JSON.parse(deBase64Url(token.split('.')[1]));
-  } catch {
-    falhar(401, 'Sessão inválida. Entre novamente.');
-  }
-  if (!token.startsWith('demo.') || typeof payload.exp !== 'number') falhar(401, 'Sessão inválida. Entre novamente.');
-  if (payload.exp <= Math.floor(Date.now() / 1000)) falhar(401, 'Sua sessão expirou. Entre novamente.');
-  if (!CONTAS_DEMO.some((c) => c.id === payload.sub)) falhar(401, 'Sessão inválida. Entre novamente.');
-
-  return { id: payload.sub, nome: payload.nome };
-}
-
 function novoId() {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -413,7 +362,7 @@ function detalharVenda(db, venda) {
   };
 }
 
-function rotaVendas(db, metodo, partes, corpo, usuarioLogado) {
+function rotaVendas(db, metodo, partes, corpo) {
   if (partes.length === 1 && metodo === 'get') {
     return ok(
       [...db.vendas]
@@ -434,6 +383,7 @@ function rotaVendas(db, metodo, partes, corpo, usuarioLogado) {
   if (partes.length === 1 && metodo === 'post') {
     // --- validação (mesmas mensagens do back-end) ---
     const erros = [];
+    if (!textoValido(corpo.usuario_id)) erros.push('O campo "usuario_id" é obrigatório.');
     if (!Array.isArray(corpo.itens) || corpo.itens.length === 0) {
       erros.push('O campo "itens" deve ser um array com pelo menos um item de venda.');
     } else {
@@ -444,6 +394,7 @@ function rotaVendas(db, metodo, partes, corpo, usuarioLogado) {
       });
     }
     if (erros.length > 0) falhar(400, erros.join(' '));
+    if (!db.usuarios.some((u) => u.id === corpo.usuario_id)) falhar(400, 'usuario_id informado não existe.');
 
     // --- itens: equivale ao BEGIN ... COMMIT/ROLLBACK ---
     // Tudo é calculado sobre "db" (uma cópia lida do storage) e só é gravado
@@ -475,7 +426,7 @@ function rotaVendas(db, metodo, partes, corpo, usuarioLogado) {
 
     const venda = {
       id: novoId(),
-      usuario_id: usuarioLogado.id, // sempre o usuário do token; um usuario_id no corpo é ignorado
+      usuario_id: corpo.usuario_id,
       data_venda: new Date().toISOString(),
       valor_total: arredondar(itens.reduce((soma, i) => soma + i.subtotal, 0)),
       itens,
@@ -530,7 +481,7 @@ function visaoFiado(db, f) {
   return { ...resto, registrado_por: db.usuarios.find((u) => u.id === usuario_id)?.nome ?? null };
 }
 
-function rotaFiados(db, metodo, partes, corpo, usuarioLogado) {
+function rotaFiados(db, metodo, partes, corpo, usuarioId) {
   if (partes.length === 1 && metodo === 'get') {
     return ok(
       [...db.fiados]
@@ -544,7 +495,8 @@ function rotaFiados(db, metodo, partes, corpo, usuarioLogado) {
     if (erros.length > 0) falhar(400, erros.join(' '));
     const fiado = {
       id: novoId(),
-      usuario_id: usuarioLogado.id,
+      // só vale se for um usuário que existe (senão fica sem "registrado por")
+      usuario_id: db.usuarios.some((u) => u.id === usuarioId) ? usuarioId : null,
       nome_cliente: dados.nome,
       telefone: dados.telefone,
       produto: dados.produto,
@@ -607,33 +559,12 @@ function rotaDashboard(db, metodo, partes) {
   return null;
 }
 
-function tratarRequisicao(metodo, caminho, corpo, autorizacao) {
+function tratarRequisicao(metodo, caminho, corpo, usuarioId) {
   const partes = caminho.split('/').filter(Boolean);
-
-  // ---- rotas públicas ----
-  if (partes[0] === 'auth' && partes[1] === 'login' && metodo === 'post') {
-    const email = String(corpo.email || '').trim().toLowerCase();
-    const conta = CONTAS_DEMO.find((c) => c.email === email);
-    if (!conta || corpo.senha !== SENHA_DEMO) falhar(401, 'E-mail ou senha incorretos.');
-    return ok({
-      token: gerarTokenDemo(conta),
-      expira_em: new Date(Date.now() + VALIDADE_TOKEN_DEMO_S * 1000).toISOString(),
-      usuario: { id: conta.id, nome: conta.nome, email: conta.email },
-    });
-  }
-
-  // ---- daqui para baixo, tudo exige login (como no back-end) ----
-  const usuarioLogado = partes[0] === 'health' ? null : exigirLogin(autorizacao);
   const db = lerBanco();
 
   let resposta = null;
   switch (partes[0]) {
-    case 'auth':
-      if (partes[1] === 'me' && metodo === 'get') {
-        const conta = CONTAS_DEMO.find((c) => c.id === usuarioLogado.id);
-        resposta = ok({ usuario: { id: conta.id, nome: conta.nome, email: conta.email } });
-      }
-      break;
     case 'health':
       resposta = ok({ status: 'ok', api: 'demo', database: 'navegador (localStorage)', horario_servidor: new Date().toISOString() });
       break;
@@ -650,13 +581,13 @@ function tratarRequisicao(metodo, caminho, corpo, autorizacao) {
       resposta = rotaMovimentacoes(db, metodo, partes, corpo);
       break;
     case 'vendas':
-      resposta = rotaVendas(db, metodo, partes, corpo, usuarioLogado);
+      resposta = rotaVendas(db, metodo, partes, corpo);
       break;
     case 'dashboard':
       resposta = rotaDashboard(db, metodo, partes);
       break;
     case 'fiados':
-      resposta = rotaFiados(db, metodo, partes, corpo, usuarioLogado);
+      resposta = rotaFiados(db, metodo, partes, corpo, usuarioId);
       break;
     default:
       break;
@@ -686,10 +617,11 @@ export async function adaptadorDemo(config) {
 
   let resultado;
   try {
+    // operador escolhido no seletor do Header (cabeçalho enviado pelo api.js)
     const cabecalhos = config.headers;
-    const autorizacao =
-      typeof cabecalhos?.get === 'function' ? cabecalhos.get('Authorization') : cabecalhos?.Authorization;
-    resultado = tratarRequisicao(metodo, caminho, corpo || {}, autorizacao);
+    const usuarioId =
+      typeof cabecalhos?.get === 'function' ? cabecalhos.get('X-Usuario-Id') : cabecalhos?.['X-Usuario-Id'];
+    resultado = tratarRequisicao(metodo, caminho, corpo || {}, usuarioId);
   } catch (erro) {
     if (erro && erro.__http) {
       resultado = { status: erro.status, data: { status: 'error', message: erro.message } };
